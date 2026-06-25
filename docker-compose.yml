@@ -1,6 +1,9 @@
 services:
   qa-analytics:
     build: .
+    # Plausible's documented start sequence: create + migrate the Postgres/ClickHouse
+    # schemas before running (the image default command does NOT migrate).
+    command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
     environment:
       # BASE_URL, SECRET_KEY_BASE, TOTP_VAULT_KEY are required by Plausible to boot.
       # Supply real secrets via the Shipyard dashboard (env vars).
@@ -20,6 +23,7 @@ services:
     labels:
       shipyard.route: '/'
       shipyard.primary-route: 'true'
+      shipyard.env.BASE_URL: '${SHIPYARD_URL}'
 
   plausible_db:
     image: postgres:16-alpine
@@ -37,6 +41,8 @@ services:
 
   plausible_events_db:
     image: clickhouse/clickhouse-server:24.12
+    environment:
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     volumes:
       - event-data:/var/lib/clickhouse
     ulimits:
